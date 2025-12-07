@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOTP Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56e4;
+            --secondary: #3f37c9;
+            --dark: #1d3557;
+            --light: #f8f9fa;
+            --gray: #6c757d;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --card-bg: #ffffff;
+            --text: #212529;
+            --border: #e9ecef;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --primary: #4895ef;
+            --primary-dark: #3a7bd5;
+            --secondary: #4361ee;
+            --dark: #f8f9fa;
+            --light: #121212;
+            --gray: #adb5bd;
+            --success: #90e0ef;
+            --danger: #ff9ab6;
+            --card-bg: #1e1e1e;
+            --text: #f8f9fa;
+            --border: #343a40;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--light);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--light) 0%, #e9ecef 100%);
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px var(--shadow);
+            overflow: hidden;
+            padding: 30px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-toggle {
+            background: var(--border);
+            border: none;
+            width: 48px;
+            height: 26px;
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 0 3px;
+        }
+
+        .theme-toggle::before {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            transition: transform 0.3s;
+            transform: translateX(0);
+        }
+
+        [data-theme="dark"] .theme-toggle::before {
+            transform: translateX(22px);
+            background: var(--light);
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 16px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            background: var(--card-bg);
+            color: var(--text);
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .input-group i {
+            position: absolute;
+            right: 16px;
+            top: 42px;
+            color: var(--gray);
+            cursor: pointer;
+        }
+
+        .code-display {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 16px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .code-display::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+            z-index: 0;
+        }
+
+        #code {
+            font-size: 52px;
+            font-weight: 800;
+            letter-spacing: 8px;
+            color: white;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .timer-container {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin-top: 20px;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        #timer-bar {
+            height: 100%;
+            background: white;
+            border-radius: 4px;
+            width: 100%;
+            transition: width 0.5s linear;
+        }
+
+        #timer-text {
+            margin-top: 10px;
+            color: white;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--dark);
+        }
+
+        [data-theme="dark"] .btn-outline {
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(67, 97, 238, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .qr-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: var(--border);
+            border-radius: 16px;
+            text-align: center;
+            display: none;
+        }
+
+        .qr-section h3 {
+            margin-bottom: 15px;
+            color: var(--dark);
+        }
+
+        #qr-code {
+            width: 100%;
+            max-width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+        }
+
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            color: var(--gray);
+            font-size: 14px;
+        }
+
+        .error {
+            color: var(--danger);
+            margin-top: 8px;
+            font-size: 14px;
+            text-align: left;
+            display: none;
+        }
+
+        /* Animation for code display */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 500px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            #code {
+                font-size: 42px;
+                letter-spacing: 6px;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-key"></i> TOTP Generator</h1>
+            <button class="theme-toggle" id="themeToggle"></button>
+        </div>
+        
+        <div class="input-group">
+            <label for="secret">Secret Key (Base32)</label>
+            <input type="text" id="secret" placeholder="Enter your Base32 secret key">
+            <i class="fas fa-qrcode" id="qrToggle"></i>
+            <div class="error" id="error">Invalid Base32 secret key</div>
+        </dev>
+        
+        <div class="code-display pulse">
+            <div id="code">------</div>
+            <div class="timer-container">
+                <div id="timer-bar"></div>
+            </div>
+            <div id="timer-text">Next refresh in <span id="timer-count">30</span>s</div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" id="copyBtn">
+                <i class="fas fa-copy"></i> Copy Code
+            </button>
+            <button class="btn btn-outline" id="refreshBtn">
+                <i class="fas fa-sync"></i> Refresh
+            </button>
+        </div>
+        
+        <div class="qr-section" id="qrSection">
+            <h3>Scan QR Code</h3>
+            <div id="qr-code">QR Code will appear here</div>
+        </div>
+        
+        <div class="footer">
+            <p>Time-based One-Time Password Generator</p>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const secretInput = document.getElementById('secret');
+        const codeDisplay = document.getElementById('code');
+        const timerCount = document.getElementById('timer-count');
+        const timerBar = document.getElementById('timer-bar');
+        const copyBtn = document.getElementById('copyBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const themeToggle = document.getElementById('themeToggle');
+        const qrToggle = document.getElementById('qrToggle');
+        const qrSection = document.getElementById('qrSection');
+        const errorDiv = document.getElementById('error');
+
+        // Theme handling
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // QR code toggle
+        qrToggle.addEventListener('click', () => {
+            if (qrSection.style.display === 'block') {
+                qrSection.style.display = 'none';
+                qrToggle.classList.remove('pulse');
+            } else {
+                const secret = secretInput.value.trim();
+                if (secret) {
+                    qrSection.style.display = 'block';
+                    qrToggle.classList.add('pulse');
+                    // In a real implementation, this would generate a QR code
+                    document.getElementById('qr-code').innerHTML = 
+                        `<div style="font-size:14px; color:#333; padding:20px;">
+                            QR code for:<br>
+                            <strong style="font-size:16px;">${secret}</strong>
+                        </div>`;
+                } else {
+                    showError('Please enter a secret key first');
+                }
+            }
+        });
+
+        // Base32 Decoder
+        function base32Decode(input) {
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            let bits = "", output = [];
+
+            input = input.replace(/=+$/, '').toUpperCase();
+
+            for (let i = 0; i < input.length; i++) {
+                const val = alphabet.indexOf(input[i]);
+                if (val === -1) continue;
+                bits += val.toString(2).padStart(5, '0');
+            }
+            
+            // Check if input is valid Base32
+            if (bits.length % 8 !== 0 && bits.length < 8) {
+                throw new Error('Invalid Base32 string');
+            }
+            
+            for (let i = 0; i + 8 <= bits.length; i += 8) {
+                output.push(parseInt(bits.substring(i, i + 8), 2));
+            }
+            return new Uint8Array(output);
+        }
+
+        // HMAC-SHA1
+        async function hmacSha1(key, counter) {
+            const cryptoKey = await crypto.subtle.importKey(
+                "raw", key, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]
+            );
+
+            const buffer = new ArrayBuffer(8);
+            const dataView = new DataView(buffer);
+            dataView.setUint32(4, counter);
+
+            return crypto.subtle.sign("HMAC", cryptoKey, buffer);
+        }
+
+        // TOTP Generator
+        async function generateTOTP(secret) {
+            if (!secret) return "------";
+            
+            try {
+                const keyBytes = base32Decode(secret);
+                const timestep = 30;
+                const counter = Math.floor(Date.now() / 1000 / timestep);
+
+                const hmac = new Uint8Array(await hmacSha1(keyBytes, counter));
+                const offset = hmac[hmac.length - 1] & 0xf;
+
+                const binary =
+                    ((hmac[offset] & 0x7f) << 24) |
+                    ((hmac[offset + 1] & 0xff) << 16) |
+                    ((hmac[offset + 2] & 0xff) << 8) |
+                    (hmac[offset + 3] & 0xff);
+
+                return (binary % 1000000).toString().padStart(6, "0");
+            } catch (e) {
+                showError('Invalid secret key format');
+                return "ERROR";
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Copy Code
+        function copyCode() {
+            const code = codeDisplay.innerText;
+            if (code === '------' || code === 'ERROR') return;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                copyBtn.classList.add('pulse');
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy Code';
+                    copyBtn.classList.remove('pulse');
+                }, 1500);
+            });
+        }
+
+        // Refresh button handler
+        refreshBtn.addEventListener('click', async () => {
+            const secret = secretInput.value.trim();
+            if (secret) {
+                const code = await generateTOTP(secret);
+                codeDisplay.innerText = code;
+                codeDisplay.classList.add('pulse');
+                setTimeout(() => codeDisplay.classList.remove('pulse'), 2000);
+            }
+        });
+
+        // Auto-refresh function
+        async function refresh() {
+            const secret = secretInput.value.trim();
+            let code = "------";
+            
+            if (secret) {
+                code = await generateTOTP(secret);
+                if (code !== "ERROR") {
+                    codeDisplay.innerText = code;
+                }
+            } else {
+                codeDisplay.innerText = "------";
+            }
+            
+            const totalSeconds = 30;
+            const currentSeconds = totalSeconds - (Math.floor(Date.now() / 1000) % totalSeconds);
+            timerCount.textContent = currentSeconds;
+            
+            // Update progress bar
+            const progress = (currentSeconds / totalSeconds) * 100;
+            timerBar.style.width = `${progress}%`;
+            
+            setTimeout(refresh, 1000);
+        }
+
+        // Initialize
+        secretInput.addEventListener('input', () => {
+            errorDiv.style.display = 'none';
+        });
+        
+        copyBtn.addEventListener('click', copyCode);
+        refresh();
+    </script>
+</body>
+</html>
